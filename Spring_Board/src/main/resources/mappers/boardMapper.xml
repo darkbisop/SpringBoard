@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="boardMapper">
+   <!-- 게시글 작성 -->
+	<insert id="insert" parameterType="kr.co.vo.BoardVO" useGeneratedKeys="true" keyProperty="bno">
+		<selectKey keyProperty="bno" resultType="int" order="BEFORE">
+				SELECT SPRING_BOARD_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO SPRING_BOARD( BNO, TITLE, CONTENT, WRITER, ORIGNO, DEPTH, GROUPLAYER )
+					  VALUES( #{bno}, #{title}, #{content}, #{writer}, SPRING_BOARD_SEQ.CURRVAL, #{depth}, #{groupLayer})		
+	</insert>
+	
+	<!-- 답글 작성 -->
+	<insert id="insertReply" parameterType="kr.co.vo.BoardVO" useGeneratedKeys="true" keyProperty="bno">
+		<selectKey keyProperty="bno" resultType="int" order="BEFORE">
+				SELECT SPRING_BOARD_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO SPRING_BOARD( BNO, TITLE, CONTENT, WRITER, ORIGNO, DEPTH, GROUPLAYER )
+					  VALUES( #{bno}, #{title}, #{content}, #{writer}, #{origNo}, #{depth} + 1, #{groupLayer} + 1)		
+	</insert>
+	
+	<!-- 목록 -->
+	<select id="list" resultType="kr.co.vo.BoardVO">
+		SELECT BNO, TITLE, WRITER, REGDATE, DEPTH, GROUPLAYER FROM SPRING_BOARD ORDER BY ORIGNO DESC, DEPTH ASC
+	</select>
+	
+	<!-- 조회 -->
+	<select id="read" parameterType="int" resultType="kr.co.vo.BoardVO">
+		SELECT BNO, TITLE, CONTENT, WRITER, REGDATE, ORIGNO, DEPTH, GROUPLAYER FROM SPRING_BOARD WHERE BNO = #{bno}
+	</select>
+	
+	<!-- 수정 -->
+	<update id="update" parameterType="kr.co.vo.BoardVO">
+		UPDATE SPRING_BOARD SET TITLE =	#{title}, CONTENT =	#{content} WHERE BNO = #{bno}
+	</update>
+
+	<!-- 삭제 -->
+	<delete id="delete" parameterType="kr.co.vo.BoardVO">
+		DELETE FROM SPRING_BOARD WHERE BNO = #{bno}
+	</delete>
+	
+	<update id="replyBoardUpdate" parameterType="kr.co.vo.BoardVO">
+		update SPRING_BOARD set depth = depth + 1 where origNo = #{origNo} and depth > #{depth}
+	</update>
+	
+	<!-- 페이지 -->
+	<select id="listPage" resultType="kr.co.vo.BoardVO" parameterType="kr.co.vo.Criteria">
+		SELECT  BNO, TITLE,  CONTENT,WRITER, REGDATE, ORIGNO, DEPTH, GROUPLAYER
+					FROM (SELECT BNO, TITLE, CONTENT, WRITER, REGDATE, ORIGNO, DEPTH, GROUPLAYER, ROW_NUMBER() 
+					OVER(ORDER BY BNO DESC) AS RNUM FROM SPRING_BOARD) MP
+					WHERE RNUM BETWEEN #{rowStart} AND #{rowEnd}
+					ORDER BY ORIGNO DESC, DEPTH ASC
+	</select>
+	
+	<!-- 페이지 갯수 -->
+	<select id="listCount" resultType="int">
+		<![CDATA[SELECT COUNT(BNO) FROM SPRING_BOARD WHERE BNO > 0]]>	
+	</select>
+	
+	<!-- 첨부파일 업로드 -->
+	<insert id="insertFile" parameterType="hashMap">
+		INSERT INTO SPRING_FILE(FILE_NO, BNO, ORG_FILE_NAME, STORED_FILE_NAME, FILE_SIZE)
+					VALUES (SEQ_SPRING_FILE_NO.NEXTVAL, #{bno}, #{org_file_name}, #{stored_file_name}, #{file_size})
+	</insert>
+	
+	<!-- 첨부파일 조회 -->
+	<select id="selectFileList" parameterType="int" resultType="hashMap">
+		SELECT FILE_NO, ORG_FILE_NAME, ROUND(FILE_SIZE/1024, 1) AS FILE_SIZE
+					FROM SPRING_FILE WHERE BNO = #{bno} AND DEL_GB='N' ORDER BY FILE_NO ASC
+	</select>
+	
+	<!-- 첨부파일 다운 -->
+	<select id="selectFileInfo" parameterType="hashMap" resultType="hashMap">
+		SELECT STORED_FILE_NAME, ORG_FILE_NAME FROM SPRING_FILE WHERE FILE_NO = #{FILE_NO}
+	</select>
+	
+	<update id="updateFile" parameterType="hashMap">
+		UPDATE SPRING_FILE SET DEL_GB ='Y' WHERE FILE_NO = #{FILE_NO}
+	</update>
+</mapper>
